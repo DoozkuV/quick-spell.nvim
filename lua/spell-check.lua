@@ -1,36 +1,56 @@
 local function find_next_misspelled_word()
     local current_line = vim.fn.line('.')
-    local last_line = vim.fn.line('w0')
+    local last_line = vim.fn.line('$')
     for line = current_line, last_line do
         vim.fn.cursor(line, 1)
         local col = vim.fn.search('\\<\\k\\+\\>', 'n')
-        if col ~= 0 and vim.fn.spellbadword() ~= '' then
-            return true
+        if col ~= 0 then
+            local bad_word = vim.fn.spellbadword()[1]
+            if bad_word ~= '' then
+                return bad_word
+            end
         end
     end
-    return false
+    return nil
 end
 
--- Func to be exported
-local function find_and_fix_next_misspelled_word()
-    -- Save cursor position
-    local initial_pos = vim.api.nvim_win_get_cursor(0)
-
-    if not find_next_misspelled_word() then
-        print("No more misspelled words found")
+local function correct_word()
+    local misspelled_word = find_next_misspelled_word()
+    if not misspelled_word then
+        print("No misspelled words found")
         return
     end
 
-    -- Run the spell checker command `z=`
-    vim.fn.spellsuggest()
-    -- Create an autocmd group to return to the initial position
-    vim.cmd([[
-    augroup ReturnToInitialPosition
-        autocmd!
-        autocmd CmdlineLeave : ++once lua vim.api.nvim_win_get_cursor(0, { ]] ..
-        initial_pos[1] .. ", " .. initial_pos[2] .. [[ })
-    augroup END]])
+    local suggestions = vim.fn.spellsuggest(misspelled_word)
+    if #suggestions == 0 then
+        print("No suggestions found for: " .. misspelled_word)
+        return
+    end
+
+    local prompt = { "Choose a correction for: " .. misspelled_word }
+    for i, suggestion in ipairs(suggestions) do
+        table.insert(prompt, i .. ": " .. suggestion)
+    end
+
+    local choice = vim.fn.inputlist(prompt)
+    if choice < 1 or choice > #suggestions then
+        print("No valid choice made")
+        return
+    end
+
+    -- Replace the misspelled word with the chosen suggestion
+    vim.cmd('normal! ciw' .. suggestions[choice])
+end
+
+-- Func to be exported
+-- Effectively acts as a wrapper func around the helper that returns
+-- the cursor back to it's original position regardless of the outcome
+local function correct_word_wrapper()
+    -- Save cursor position
+    local initial_pos = vim.api.nvim_win_get_cursor(0)
+    correct_word()
+    vim.api.nvim_win_set_cursor(0, initial_pos)
 end
 
 
-return { find_and_fix_next_misspelled_word = find_and_fix_next_misspelled_word }
+return { correct_word = correct_word_wrapper }
