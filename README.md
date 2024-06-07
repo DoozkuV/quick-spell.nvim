@@ -7,7 +7,8 @@ Neovim's default spell-checking functionality but has clunky binds - you have to
 This package hopes to solve that problem, by providing a single keybind that can find and correct the nearest word without altering the position of the cursor. 
 
 # TODO
-- [ ] Add ability to mark words as good.
+- [x] Add ability to mark words as good.
+    - [ ] Better UI for this; as of right now output is just mangled.
 - [ ] Smarter checking: Right now it always checks lines from start to end - it should always just pick the closest word to the cursor.
 - [ ] Telescope integration? This should already work theoretically.
 - [ ] Checking to see if "spell" is enabled before package can work. 
