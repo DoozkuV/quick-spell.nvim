@@ -2,7 +2,7 @@ local function find_misspelled_word(max_iterations)
     local back_pos = vim.api.nvim_win_get_cursor(0)
     local front_pos = vim.api.nvim_win_get_cursor(0)
 
-    -- Checks the the word in the specified direction.
+    -- Checks the word in the specified direction.
     -- Returns if a misspelled word is found
     local function check_direction(command, pos)
         vim.api.nvim_win_set_cursor(0, pos)
