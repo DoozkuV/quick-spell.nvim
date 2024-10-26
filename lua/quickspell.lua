@@ -23,12 +23,10 @@ local function find_misspelled_word(max_iterations)
         -- Check back
         bad_word = check_direction("b", back_pos)
         if bad_word then return bad_word end
-        print("{" .. back_pos[1] .. "," .. back_pos[2] .. "}")
 
         -- Check front
         bad_word = check_direction("w", front_pos)
         if bad_word then return bad_word end
-        print("{" .. front_pos[1] .. "," .. front_pos[2] .. "}")
     end
 
     return nil
