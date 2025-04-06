@@ -42,13 +42,13 @@ end
 local function correct_word()
     local misspelled_word = find_misspelled_word(1000)
     if not misspelled_word then
-        print("No misspelled words found")
+        vim.notify("No misspelled words found", vim.log.levels.INFO)
         return
     end
 
     local suggestions = vim.fn.spellsuggest(misspelled_word)
     if #suggestions == 0 then
-        print("No suggestions found for: " .. misspelled_word)
+        vim.notify("No suggestions found for: " .. misspelled_word, vim.log.levels.WARN)
         return
     end
 
@@ -71,7 +71,10 @@ end
 -- Finds the closest misspelled word and corrects it
 --
 local function main()
-    if not vim.wo.spell then error("Spelling is not enabled!") end
+    if not vim.wo.spell then
+        vim.notify("Spelling is not enabled in this buffer!", vim.log.levels.WARN)
+        return
+    end
     -- Wrap the logic so that the cursor position is always reset
     local initial_pos = vim.api.nvim_win_get_cursor(0)
     correct_word()
