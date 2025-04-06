@@ -34,6 +34,12 @@ local function find_misspelled_word(max_iterations)
         -- Check front
         bad_word = check_direction("w", front_pos)
         if bad_word then return bad_word end
+
+        -- Early exit if at buffer start/end
+        -- if back_pos[1] == 1 and back_pos[2] == 1 and
+        --     front_pos[1] == vim.fn.line('$') and front_pos[2] > #vim.fn.getline('$') then
+        --     break
+        -- end
     end
 
     return nil
@@ -42,36 +48,37 @@ end
 local function correct_word()
     local misspelled_word = find_misspelled_word(1000)
     if not misspelled_word then
-        print("No misspelled words found")
+        vim.notify("No misspelled words found", vim.log.levels.INFO)
         return
     end
 
     local suggestions = vim.fn.spellsuggest(misspelled_word)
     if #suggestions == 0 then
-        print("No suggestions found for: " .. misspelled_word)
+        vim.notify("No suggestions found for: " .. misspelled_word,
+            vim.log.levels.WARN)
         return
     end
 
-    local prompt = {
-        "Choose a correction for: " .. misspelled_word,
-        "Cancel: 0",
-        "Mark Word as Good: 1",
-    }
-    for i, suggestion in ipairs(suggestions) do
-        table.insert(prompt, i + 1 .. ": " .. suggestion)
-    end
 
-    local choice = vim.fn.inputlist(prompt)
-    if choice == 1 then
-        vim.cmd('spellgood ' .. misspelled_word)
-    elseif choice > 1 and choice < #suggestions then
-        vim.cmd('normal! ciw' .. suggestions[choice - 1])
-    end
+    vim.ui.select(
+        suggestions,
+        {
+            prompt = "Correct: " .. misspelled_word,
+            format_item = function(item) return item end,
+        },
+        function(choice)
+            if not choice then return end -- Cancelled
+            vim.cmd('normal! ciw' .. choice)
+        end
+    )
 end
+
 -- Finds the closest misspelled word and corrects it
---
 local function main()
-    if not vim.wo.spell then error("Spelling is not enabled!") end
+    if not vim.wo.spell then
+        vim.notify("Spelling is not enabled for this buffer!", vim.log.levels.WARN)
+        return
+    end
     -- Wrap the logic so that the cursor position is always reset
     local initial_pos = vim.api.nvim_win_get_cursor(0)
     correct_word()
