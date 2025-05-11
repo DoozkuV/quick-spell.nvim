@@ -23,5 +23,5 @@ vim.keymap.set({'n', 'i'}, '<C-;>', function()
 end)
 ```
 ## Inspirations
-- [Jinx](https://github.com/minad/jinx) I basically ripped the work flow for Quick-Spell from this package. 
+- [Jinx](https://github.com/minad/jinx): I basically ripped the work flow for Quick-Spell from this package. 
 
