@@ -2,7 +2,7 @@
 --- @param command string Movement command ("b" for backward, "w" for forward). Must be a valid `normal!` command.
 --- @param pos integer[] Current cursor position as `{row, col}` (1-indexed). This table is mutated in-place.
 --- @return string|nil # The misspelled word if found, otherwise `nil`.
-local function check_direction(command, pos)
+local function check_dir_and_move_cursor(command, pos)
     vim.api.nvim_win_set_cursor(0, pos)
 
     local bad_word = vim.fn.spellbadword(vim.fn.expand("<cword>"))[1]
@@ -22,15 +22,13 @@ end
 local function find_misspelled_word(max_iterations)
     local back_pos                  = vim.api.nvim_win_get_cursor(0)
     local front_pos                 = vim.api.nvim_win_get_cursor(0)
-    local line_count                = vim.api.nvim_buf_line_count(0)
     local back_active, front_active = true, true
 
     -- Checks the word in the specified direction.
     -- Returns if a misspelled word is found
-    local bad_word
     for _ = 1, max_iterations do
         if back_active then
-            local ok, result = pcall(check_direction, "b", back_pos)
+            local ok, result = pcall(check_dir_and_move_cursor, "b", back_pos)
             if not ok then
                 back_active = false
             elseif result then
@@ -40,7 +38,7 @@ local function find_misspelled_word(max_iterations)
 
 
         if front_active then
-            local ok, result = pcall(check_direction, "w", front_pos)
+            local ok, result = pcall(check_dir_and_move_cursor, "w", front_pos)
             if not ok then
                 front_active = false
             elseif result then
@@ -84,7 +82,6 @@ local function correct_word()
         table.insert(choices, i .. ": " .. suggestion)
     end
 
-    -- local choice = vim.fn.inputlist(prompt)
     vim.ui.select(choices, {
         prompt = "Choose a correction for: " .. misspelled_word,
     }, function(selection)
