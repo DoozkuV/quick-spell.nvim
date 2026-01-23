@@ -102,4 +102,98 @@ describe("quick-spell", function()
             assert.equals(11, pos[2])
         end)
     end)
+
+    describe("replace_word_at", function()
+        it("replaces word at the start of line", function()
+            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "foo bar baz" })
+
+            quick_spell.replace_word_at({ 1, 0 }, "foo", "hello")
+
+            local line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1]
+            assert.equals("hello bar baz", line)
+        end)
+
+        it("replaces word in the middle of line", function()
+            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "foo bar baz" })
+
+            quick_spell.replace_word_at({ 1, 4 }, "bar", "world")
+
+            local line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1]
+            assert.equals("foo world baz", line)
+        end)
+
+        it("replaces word at the end of line", function()
+            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "foo bar baz" })
+
+            quick_spell.replace_word_at({ 1, 8 }, "baz", "qux")
+
+            local line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1]
+            assert.equals("foo bar qux", line)
+        end)
+
+        it("replaces with longer word", function()
+            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "a b c" })
+
+            quick_spell.replace_word_at({ 1, 2 }, "b", "longer")
+
+            local line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1]
+            assert.equals("a longer c", line)
+        end)
+
+        it("replaces with shorter word", function()
+            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "hello world test" })
+
+            quick_spell.replace_word_at({ 1, 6 }, "world", "x")
+
+            local line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1]
+            assert.equals("hello x test", line)
+        end)
+
+        it("handles word on different line", function()
+            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "first line", "second line", "third line" })
+
+            quick_spell.replace_word_at({ 2, 7 }, "line", "row")
+
+            local lines = vim.api.nvim_buf_get_lines(0, 0, 3, false)
+            assert.equals("first line", lines[1])
+            assert.equals("second row", lines[2])
+            assert.equals("third line", lines[3])
+        end)
+
+        it("replaces first part of hyphenated word", function()
+            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "self-aware robot" })
+
+            quick_spell.replace_word_at({ 1, 0 }, "self", "fully")
+
+            local line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1]
+            assert.equals("fully-aware robot", line)
+        end)
+
+        it("replaces second part of hyphenated word", function()
+            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "self-aware robot" })
+
+            quick_spell.replace_word_at({ 1, 5 }, "aware", "conscious")
+
+            local line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1]
+            assert.equals("self-conscious robot", line)
+        end)
+
+        it("replaces word with apostrophe", function()
+            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "I don't know" })
+
+            quick_spell.replace_word_at({ 1, 2 }, "don't", "do")
+
+            local line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1]
+            assert.equals("I do know", line)
+        end)
+
+        it("replaces word containing numbers", function()
+            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "test123 value" })
+
+            quick_spell.replace_word_at({ 1, 0 }, "test123", "example456")
+
+            local line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1]
+            assert.equals("example456 value", line)
+        end)
+    end)
 end)

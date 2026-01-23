@@ -1,5 +1,15 @@
 local M = {}
 
+--- Replaces the word at the given position with a new word.
+--- @param pos integer[] Position {row, col} of the word to replace
+--- @param old_word string The word to replace
+--- @param new_word string The replacement text
+function M.replace_word_at(pos, old_word, new_word)
+    local start_col = pos[2]
+    local end_col = start_col + #old_word
+    vim.api.nvim_buf_set_text(0, pos[1] - 1, start_col, pos[1] - 1, end_col, { new_word })
+end
+
 --- Finds the nearest misspelled word using Vim's built-in spell navigation.
 --- @return string|nil word The misspelled word, or nil if none found
 --- @return integer[]|nil pos The position {row, col} of the misspelled word
@@ -82,15 +92,12 @@ function M.correct_word()
     }, function(choice, idx)
         if not choice then return end
 
-        vim.api.nvim_win_set_cursor(0, word_pos)
-
         if idx == 1 then
+            vim.api.nvim_win_set_cursor(0, word_pos)
             vim.cmd("spellgood " .. vim.fn.fnameescape(misspelled_word))
             vim.notify("Added '" .. misspelled_word .. "' to spell file", vim.log.levels.INFO)
         else
-            -- Safe replacement using register to avoid command injection
-            vim.fn.setreg('z', suggestions[idx - 1])
-            vim.cmd('normal! viw"zp')
+            M.replace_word_at(word_pos, misspelled_word, suggestions[idx - 1])
         end
 
         vim.api.nvim_win_set_cursor(0, initial_pos)
