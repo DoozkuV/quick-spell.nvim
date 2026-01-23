@@ -1,22 +1,39 @@
--- TODO: Do Neovim version validation
-if vim.g.loaded_quick_spell then
-    return
+if vim.g.loaded_quick_spell then return end
+vim.g.loaded_quick_spell = true
+
+local function create_command(buf)
+    pcall(vim.api.nvim_buf_del_user_command, buf, "QuickSpell")
+    vim.api.nvim_buf_create_user_command(buf, "QuickSpell", function()
+        require("quick-spell").correct_word()
+    end, { desc = "Correct nearest misspelled word" })
 end
-vim.g.loaded_quick_spell = 1
 
-local cmd = "QuickSpell"
+local function delete_command(buf)
+    pcall(vim.api.nvim_buf_del_user_command, buf, "QuickSpell")
+end
 
-vim.api.nvim_create_augroup("quick-spell", { clear = true })
+local group = vim.api.nvim_create_augroup("quick-spell", { clear = true })
+
+-- Handle spell option changes
 vim.api.nvim_create_autocmd("OptionSet", {
-    group = "quick-spell",
+    group = group,
     pattern = "spell",
-    callback = function()
-        if vim.wo.spell then
-            vim.api.nvim_buf_create_user_command(0, cmd,
-                function() require("quick-spell").correct_word() end,
-                { nargs = 0 })
-        elseif vim.api.nvim_buf_get_commands(0, {})[cmd] ~= nil then
-            vim.api.nvim_buf_del_user_command(0, cmd)
+    callback = function(args)
+        local buf = args.buf
+        if vim.bo[buf].spell then
+            create_command(buf)
+        else
+            delete_command(buf)
         end
-    end
+    end,
+})
+
+-- Handle buffers that already have spell enabled
+vim.api.nvim_create_autocmd("BufEnter", {
+    group = group,
+    callback = function(args)
+        if vim.wo.spell then
+            create_command(args.buf)
+        end
+    end,
 })
