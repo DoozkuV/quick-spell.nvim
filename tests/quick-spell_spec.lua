@@ -197,14 +197,10 @@ describe("quick-spell", function()
         end)
     end)
 
-    describe("insert mode behavior", function()
-        it("skips cursor word in insert mode and finds next misspelled", function()
+    describe("skip_cursor_word option", function()
+        it("skips cursor word when skip_cursor_word is true", function()
             vim.api.nvim_buf_set_lines(0, 0, -1, false, { "helo wrld" })
             vim.api.nvim_win_set_cursor(0, { 1, 0 }) -- on "helo"
-
-            -- Mock insert mode
-            local orig_mode = vim.fn.mode
-            vim.fn.mode = function() return "i" end
 
             local found_word = nil
             local orig_select = vim.ui.select
@@ -213,21 +209,16 @@ describe("quick-spell", function()
                 on_choice(nil)
             end
 
-            quick_spell.correct_word()
+            quick_spell.correct_word({ skip_cursor_word = true })
 
-            vim.fn.mode = orig_mode
             vim.ui.select = orig_select
-            -- Should find "wrld" not "helo" since cursor is on "helo" in insert mode
+            -- Should find "wrld" not "helo" since we're skipping cursor word
             assert.equals("wrld", found_word)
         end)
 
-        it("returns no misspellings when only cursor word is misspelled in insert mode", function()
+        it("returns no misspellings when only cursor word is misspelled and skipping", function()
             vim.api.nvim_buf_set_lines(0, 0, -1, false, { "helo world" })
             vim.api.nvim_win_set_cursor(0, { 1, 0 }) -- on "helo"
-
-            -- Mock insert mode
-            local orig_mode = vim.fn.mode
-            vim.fn.mode = function() return "i" end
 
             local notified = false
             local orig_notify = vim.notify
@@ -235,18 +226,16 @@ describe("quick-spell", function()
                 if msg:match("No misspelled") then notified = true end
             end
 
-            quick_spell.correct_word()
+            quick_spell.correct_word({ skip_cursor_word = true })
 
-            vim.fn.mode = orig_mode
             vim.notify = orig_notify
             assert.is_true(notified)
         end)
 
-        it("finds cursor word in normal mode", function()
+        it("finds cursor word when skip_cursor_word is false", function()
             vim.api.nvim_buf_set_lines(0, 0, -1, false, { "helo world" })
             vim.api.nvim_win_set_cursor(0, { 1, 0 }) -- on "helo"
 
-            -- Ensure normal mode (default)
             local found_word = nil
             local orig_select = vim.ui.select
             vim.ui.select = function(items, opts, on_choice)
@@ -254,20 +243,16 @@ describe("quick-spell", function()
                 on_choice(nil)
             end
 
-            quick_spell.correct_word()
+            quick_spell.correct_word({ skip_cursor_word = false })
 
             vim.ui.select = orig_select
-            -- Should find "helo" since we're in normal mode
+            -- Should find "helo" since we're not skipping cursor word
             assert.equals("helo", found_word)
         end)
 
-        it("skips cursor word in replace mode", function()
-            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "helo wrld" })
+        it("finds cursor word by default (no opts)", function()
+            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "helo world" })
             vim.api.nvim_win_set_cursor(0, { 1, 0 }) -- on "helo"
-
-            -- Mock replace mode
-            local orig_mode = vim.fn.mode
-            vim.fn.mode = function() return "R" end
 
             local found_word = nil
             local orig_select = vim.ui.select
@@ -278,10 +263,9 @@ describe("quick-spell", function()
 
             quick_spell.correct_word()
 
-            vim.fn.mode = orig_mode
             vim.ui.select = orig_select
-            -- Should find "wrld" not "helo" since cursor is on "helo" in replace mode
-            assert.equals("wrld", found_word)
+            -- Should find "helo" since default is to not skip
+            assert.equals("helo", found_word)
         end)
     end)
 end)

@@ -11,14 +11,14 @@ function M.replace_word_at(pos, old_word, new_word)
 end
 
 --- Finds the nearest misspelled word using Vim's built-in spell navigation.
+--- @param skip_cursor_word boolean Whether to skip the word at cursor (for insert mode)
 --- @return string|nil word The misspelled word, or nil if none found
 --- @return integer[]|nil pos The position {row, col} of the misspelled word
-local function find_nearest_misspelled()
+local function find_nearest_misspelled(skip_cursor_word)
     local initial_pos = vim.api.nvim_win_get_cursor(0)
-    local in_insert_mode = vim.fn.mode():match("^[iR]") ~= nil
 
-    -- Check if current word is misspelled first (skip in insert mode - word is being typed)
-    if not in_insert_mode then
+    -- Check if current word is misspelled first (skip if requested - word is being typed)
+    if not skip_cursor_word then
         local current_word = vim.fn.expand("<cword>")
         if current_word ~= "" and vim.fn.spellbadword(current_word)[1] ~= "" then
             -- Move to start of word to get correct position
@@ -40,8 +40,8 @@ local function find_nearest_misspelled()
     local back_is_cursor_word = back_pos[1] == initial_pos[1] and back_pos[2] == initial_pos[2]
     if back_word ~= "" and not back_is_cursor_word then
         back_dist = math.abs(initial_pos[1] - back_pos[1]) * 1000 + math.abs(initial_pos[2] - back_pos[2])
-    elseif back_word ~= "" and not in_insert_mode then
-        -- [s landed on current position, word under cursor is misspelled (only valid in normal mode)
+    elseif back_word ~= "" and not skip_cursor_word then
+        -- [s landed on current position, word under cursor is misspelled (only valid if not skipping)
         vim.o.wrapscan = saved_ws
         return back_word, back_pos
     end
@@ -60,9 +60,9 @@ local function find_nearest_misspelled()
     vim.o.wrapscan = saved_ws
     vim.api.nvim_win_set_cursor(0, initial_pos)
 
-    -- Return the nearest one (excluding cursor word in insert mode)
-    local back_valid = back_word ~= "" and (not in_insert_mode or not back_is_cursor_word)
-    local front_valid = front_word ~= "" and (not in_insert_mode or not front_is_cursor_word)
+    -- Return the nearest one (excluding cursor word if skip requested)
+    local back_valid = back_word ~= "" and (not skip_cursor_word or not back_is_cursor_word)
+    local front_valid = front_word ~= "" and (not skip_cursor_word or not front_is_cursor_word)
 
     if back_valid and (not front_valid or back_dist <= front_dist) then
         return back_word, back_pos
@@ -74,14 +74,18 @@ local function find_nearest_misspelled()
 end
 
 --- Corrects the nearest misspelled word using vim.ui.select.
-function M.correct_word()
+--- @param opts? { skip_cursor_word?: boolean } Options table
+---   - skip_cursor_word: Skip the word at cursor (useful when called from insert mode)
+function M.correct_word(opts)
+    opts = opts or {}
+
     if not vim.wo.spell then
         vim.notify("Spelling is not enabled in this buffer", vim.log.levels.WARN)
         return
     end
 
     local initial_pos = vim.api.nvim_win_get_cursor(0)
-    local misspelled_word, word_pos = find_nearest_misspelled()
+    local misspelled_word, word_pos = find_nearest_misspelled(opts.skip_cursor_word)
 
     if not misspelled_word or not word_pos then
         vim.notify("No misspelled words found", vim.log.levels.INFO)
