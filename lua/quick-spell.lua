@@ -15,14 +15,17 @@ end
 --- @return integer[]|nil pos The position {row, col} of the misspelled word
 local function find_nearest_misspelled()
     local initial_pos = vim.api.nvim_win_get_cursor(0)
+    local in_insert_mode = vim.fn.mode():match("^[iR]") ~= nil
 
-    -- Check if current word is misspelled first
-    local current_word = vim.fn.expand("<cword>")
-    if current_word ~= "" and vim.fn.spellbadword(current_word)[1] ~= "" then
-        -- Move to start of word to get correct position
-        vim.cmd("normal! b")
-        local word_start = vim.api.nvim_win_get_cursor(0)
-        return current_word, word_start
+    -- Check if current word is misspelled first (skip in insert mode - word is being typed)
+    if not in_insert_mode then
+        local current_word = vim.fn.expand("<cword>")
+        if current_word ~= "" and vim.fn.spellbadword(current_word)[1] ~= "" then
+            -- Move to start of word to get correct position
+            vim.cmd("normal! b")
+            local word_start = vim.api.nvim_win_get_cursor(0)
+            return current_word, word_start
+        end
     end
 
     -- Use Vim's native spell search - much more reliable than manual iteration
@@ -34,10 +37,11 @@ local function find_nearest_misspelled()
     local back_pos = vim.api.nvim_win_get_cursor(0)
     local back_word = vim.fn.spellbadword(vim.fn.expand("<cword>"))[1]
     local back_dist = math.huge
-    if back_word ~= "" and (back_pos[1] ~= initial_pos[1] or back_pos[2] ~= initial_pos[2]) then
+    local back_is_cursor_word = back_pos[1] == initial_pos[1] and back_pos[2] == initial_pos[2]
+    if back_word ~= "" and not back_is_cursor_word then
         back_dist = math.abs(initial_pos[1] - back_pos[1]) * 1000 + math.abs(initial_pos[2] - back_pos[2])
-    elseif back_word ~= "" then
-        -- [s landed on current position, word under cursor is misspelled
+    elseif back_word ~= "" and not in_insert_mode then
+        -- [s landed on current position, word under cursor is misspelled (only valid in normal mode)
         vim.o.wrapscan = saved_ws
         return back_word, back_pos
     end
@@ -48,17 +52,21 @@ local function find_nearest_misspelled()
     local front_pos = vim.api.nvim_win_get_cursor(0)
     local front_word = vim.fn.spellbadword(vim.fn.expand("<cword>"))[1]
     local front_dist = math.huge
-    if front_word ~= "" and (front_pos[1] ~= initial_pos[1] or front_pos[2] ~= initial_pos[2]) then
+    local front_is_cursor_word = front_pos[1] == initial_pos[1] and front_pos[2] == initial_pos[2]
+    if front_word ~= "" and not front_is_cursor_word then
         front_dist = math.abs(initial_pos[1] - front_pos[1]) * 1000 + math.abs(initial_pos[2] - front_pos[2])
     end
 
     vim.o.wrapscan = saved_ws
     vim.api.nvim_win_set_cursor(0, initial_pos)
 
-    -- Return the nearest one
-    if back_word ~= "" and (front_word == "" or back_dist <= front_dist) then
+    -- Return the nearest one (excluding cursor word in insert mode)
+    local back_valid = back_word ~= "" and (not in_insert_mode or not back_is_cursor_word)
+    local front_valid = front_word ~= "" and (not in_insert_mode or not front_is_cursor_word)
+
+    if back_valid and (not front_valid or back_dist <= front_dist) then
         return back_word, back_pos
-    elseif front_word ~= "" then
+    elseif front_valid then
         return front_word, front_pos
     end
 

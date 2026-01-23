@@ -20,7 +20,8 @@ vim.api.nvim_create_autocmd("OptionSet", {
     pattern = "spell",
     callback = function(args)
         local buf = args.buf
-        if vim.bo[buf].spell then
+        -- spell is window-local, use vim.v.option_new for the new value
+        if vim.v.option_new == "1" then
             create_command(buf)
         else
             delete_command(buf)

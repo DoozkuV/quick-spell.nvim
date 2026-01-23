@@ -196,4 +196,92 @@ describe("quick-spell", function()
             assert.equals("example456 value", line)
         end)
     end)
+
+    describe("insert mode behavior", function()
+        it("skips cursor word in insert mode and finds next misspelled", function()
+            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "helo wrld" })
+            vim.api.nvim_win_set_cursor(0, { 1, 0 }) -- on "helo"
+
+            -- Mock insert mode
+            local orig_mode = vim.fn.mode
+            vim.fn.mode = function() return "i" end
+
+            local found_word = nil
+            local orig_select = vim.ui.select
+            vim.ui.select = function(items, opts, on_choice)
+                found_word = opts.prompt:match("'([^']+)'")
+                on_choice(nil)
+            end
+
+            quick_spell.correct_word()
+
+            vim.fn.mode = orig_mode
+            vim.ui.select = orig_select
+            -- Should find "wrld" not "helo" since cursor is on "helo" in insert mode
+            assert.equals("wrld", found_word)
+        end)
+
+        it("returns no misspellings when only cursor word is misspelled in insert mode", function()
+            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "helo world" })
+            vim.api.nvim_win_set_cursor(0, { 1, 0 }) -- on "helo"
+
+            -- Mock insert mode
+            local orig_mode = vim.fn.mode
+            vim.fn.mode = function() return "i" end
+
+            local notified = false
+            local orig_notify = vim.notify
+            vim.notify = function(msg)
+                if msg:match("No misspelled") then notified = true end
+            end
+
+            quick_spell.correct_word()
+
+            vim.fn.mode = orig_mode
+            vim.notify = orig_notify
+            assert.is_true(notified)
+        end)
+
+        it("finds cursor word in normal mode", function()
+            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "helo world" })
+            vim.api.nvim_win_set_cursor(0, { 1, 0 }) -- on "helo"
+
+            -- Ensure normal mode (default)
+            local found_word = nil
+            local orig_select = vim.ui.select
+            vim.ui.select = function(items, opts, on_choice)
+                found_word = opts.prompt:match("'([^']+)'")
+                on_choice(nil)
+            end
+
+            quick_spell.correct_word()
+
+            vim.ui.select = orig_select
+            -- Should find "helo" since we're in normal mode
+            assert.equals("helo", found_word)
+        end)
+
+        it("skips cursor word in replace mode", function()
+            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "helo wrld" })
+            vim.api.nvim_win_set_cursor(0, { 1, 0 }) -- on "helo"
+
+            -- Mock replace mode
+            local orig_mode = vim.fn.mode
+            vim.fn.mode = function() return "R" end
+
+            local found_word = nil
+            local orig_select = vim.ui.select
+            vim.ui.select = function(items, opts, on_choice)
+                found_word = opts.prompt:match("'([^']+)'")
+                on_choice(nil)
+            end
+
+            quick_spell.correct_word()
+
+            vim.fn.mode = orig_mode
+            vim.ui.select = orig_select
+            -- Should find "wrld" not "helo" since cursor is on "helo" in replace mode
+            assert.equals("wrld", found_word)
+        end)
+    end)
 end)
