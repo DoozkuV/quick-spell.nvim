@@ -19,7 +19,10 @@ local function find_nearest_misspelled()
     -- Check if current word is misspelled first
     local current_word = vim.fn.expand("<cword>")
     if current_word ~= "" and vim.fn.spellbadword(current_word)[1] ~= "" then
-        return current_word, initial_pos
+        -- Move to start of word to get correct position
+        vim.cmd("normal! b")
+        local word_start = vim.api.nvim_win_get_cursor(0)
+        return current_word, word_start
     end
 
     -- Use Vim's native spell search - much more reliable than manual iteration
