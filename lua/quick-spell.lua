@@ -89,11 +89,8 @@ function M.correct_word()
             vim.notify("Added '" .. misspelled_word .. "' to spell file", vim.log.levels.INFO)
         else
             -- Safe replacement using register to avoid command injection
-            local saved_reg = vim.fn.getreg('"')
-            local saved_regtype = vim.fn.getregtype('"')
-            vim.fn.setreg('"', suggestions[idx - 1])
-            vim.cmd('normal! "_ciw""P')
-            vim.fn.setreg('"', saved_reg, saved_regtype)
+            vim.fn.setreg('z', suggestions[idx - 1])
+            vim.cmd('normal! viw"zp')
         end
 
         vim.api.nvim_win_set_cursor(0, initial_pos)
