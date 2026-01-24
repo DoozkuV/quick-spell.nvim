@@ -1,5 +1,4 @@
 local quick_spell = require("quick-spell")
-local replacer = require("quick-spell.replacer")
 local config = require("quick-spell.config")
 
 describe("quick-spell", function()
@@ -136,99 +135,88 @@ describe("quick-spell", function()
             vim.ui.select = orig_select
             assert.is_true(suggestion_count <= 3)
         end)
-    end)
 
-    describe("replacer.replace", function()
-        it("replaces word at the start of line", function()
-            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "foo bar baz" })
+        it("corrects misspelled word", function()
+            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "helo world" })
+            vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
-            replacer.replace_word({ 1, 0 }, "foo", "hello")
+            local orig_select = vim.ui.select
+            vim.ui.select = function(items, opts, on_choice)
+                on_choice("hello")
+            end
 
+            quick_spell.correct_word()
+
+            vim.ui.select = orig_select
             local line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1]
-            assert.equals("hello bar baz", line)
-        end)
-
-        it("replaces word in the middle of line", function()
-            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "foo bar baz" })
-
-            replacer.replace_word({ 1, 4 }, "bar", "world")
-
-            local line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1]
-            assert.equals("foo world baz", line)
-        end)
-
-        it("replaces word at the end of line", function()
-            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "foo bar baz" })
-
-            replacer.replace_word({ 1, 8 }, "baz", "qux")
-
-            local line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1]
-            assert.equals("foo bar qux", line)
+            assert.equals("hello world", line)
         end)
 
         it("replaces with longer word", function()
-            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "a b c" })
+            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "wrld test" })
+            vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
-            replacer.replace_word({ 1, 2 }, "b", "longer")
+            local orig_select = vim.ui.select
+            vim.ui.select = function(items, opts, on_choice)
+                on_choice("worldwide")
+            end
 
+            quick_spell.correct_word()
+
+            vim.ui.select = orig_select
             local line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1]
-            assert.equals("a longer c", line)
+            assert.equals("worldwide test", line)
         end)
 
         it("replaces with shorter word", function()
-            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "hello world test" })
+            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "accross the street" })
+            vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
-            replacer.replace_word({ 1, 6 }, "world", "x")
+            local orig_select = vim.ui.select
+            vim.ui.select = function(items, opts, on_choice)
+                on_choice("across")
+            end
 
+            quick_spell.correct_word()
+
+            vim.ui.select = orig_select
             local line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1]
-            assert.equals("hello x test", line)
+            assert.equals("across the street", line)
         end)
 
-        it("handles word on different line", function()
-            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "first line", "second line", "third line" })
+        it("handles word not at start of line", function()
+            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "Good bda input" })
+            vim.api.nvim_win_set_cursor(0, { 1, 5 })
 
-            replacer.replace_word({ 2, 7 }, "line", "row")
+            local found_word = nil
+            local orig_select = vim.ui.select
+            vim.ui.select = function(items, opts, on_choice)
+                found_word = opts.prompt:match("'([^']+)'")
+                on_choice("bad")
+            end
 
-            local lines = vim.api.nvim_buf_get_lines(0, 0, 3, false)
-            assert.equals("first line", lines[1])
-            assert.equals("second row", lines[2])
-            assert.equals("third line", lines[3])
+            quick_spell.correct_word()
+
+            vim.ui.select = orig_select
+            assert.equals("bda", found_word)
+            local line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1]
+            assert.equals("Good bad input", line)
         end)
 
-        it("replaces first part of hyphenated word", function()
-            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "self-aware robot" })
+        it("handles cursor at end of misspelled word", function()
+            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "Good bda input" })
+            vim.api.nvim_win_set_cursor(0, { 1, 7 }) -- on 'a' at end of "bda"
 
-            replacer.replace_word({ 1, 0 }, "self", "fully")
+            local orig_select = vim.ui.select
+            vim.ui.select = function(items, opts, on_choice)
+                on_choice("bad")
+            end
 
+            quick_spell.correct_word()
+
+            vim.ui.select = orig_select
             local line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1]
-            assert.equals("fully-aware robot", line)
-        end)
-
-        it("replaces second part of hyphenated word", function()
-            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "self-aware robot" })
-
-            replacer.replace_word({ 1, 5 }, "aware", "conscious")
-
-            local line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1]
-            assert.equals("self-conscious robot", line)
-        end)
-
-        it("replaces word with apostrophe", function()
-            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "I don't know" })
-
-            replacer.replace_word({ 1, 2 }, "don't", "do")
-
-            local line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1]
-            assert.equals("I do know", line)
-        end)
-
-        it("replaces word containing numbers", function()
-            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "test123 value" })
-
-            replacer.replace_word({ 1, 0 }, "test123", "example456")
-
-            local line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1]
-            assert.equals("example456 value", line)
+            assert.equals("Good bad input", line)
         end)
     end)
 

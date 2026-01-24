@@ -1,6 +1,5 @@
 local config = require("quick-spell.config")
 local finder = require("quick-spell.finder")
-local replacer = require("quick-spell.replacer")
 
 local M = {}
 
@@ -50,7 +49,7 @@ function M.correct_word()
             vim.cmd("spellgood " .. vim.fn.fnameescape(match.word))
             notify("Added '" .. match.word .. "' to dictionary", vim.log.levels.INFO)
         else
-            replacer.replace_word(match.pos, match.word, item)
+            vim.api.nvim_buf_set_text(0, match.pos[1] - 1, match.pos[2], match.pos[1] - 1, match.pos[2] + #match.word, { item })
         end
 
         vim.api.nvim_win_set_cursor(0, initial_pos)

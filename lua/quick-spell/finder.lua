@@ -32,12 +32,20 @@ local function get_misspelled_at_cursor()
         return nil
     end
 
-    local initial_pos = vim.api.nvim_win_get_cursor(0)
-    vim.cmd("normal! b")
-    local pos = vim.api.nvim_win_get_cursor(0)
-    vim.api.nvim_win_set_cursor(0, initial_pos)
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    local line = vim.api.nvim_get_current_line()
+    local col = cursor[2] -- 0-indexed
 
-    return { word = word, pos = pos }
+    -- Walk backwards to find word start (sub is 1-indexed, so use col+1)
+    while col > 0 and line:sub(col, col):match("[%w']") do
+        col = col - 1
+    end
+    -- If we stopped on a non-word char (or went to 0), adjust forward
+    if not line:sub(col + 1, col + 1):match("[%w']") then
+        col = col + 1
+    end
+
+    return { word = word, pos = { cursor[1], col } }
 end
 
 ---Search in a direction and return match with distance
