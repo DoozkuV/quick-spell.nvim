@@ -1,17 +1,24 @@
 local config = require("quick-spell.config")
-local logger = require("quick-spell.logger")
 local finder = require("quick-spell.finder")
 local replacer = require("quick-spell.replacer")
-
 
 local M = {}
 
 M.setup = config.setup
 
+---Simple vim notify wrapper that checks for notification config
+---@param msg string
+---@param level integer | nil
+local function notify(msg, level)
+    if config.options.notify then
+        vim.notify(msg, level)
+    end
+end
+
 ---The main function to be bound by the plugin user
 function M.correct_word()
     if not vim.wo.spell then
-        logger.log("Spell checking is not enabled", vim.log.levels.WARN)
+        notify("Spell checking is not enabled", vim.log.levels.WARN)
         return
     end
 
@@ -22,13 +29,13 @@ function M.correct_word()
     local match = finder.find_nearest(skip_cursor_word)
 
     if not match then
-        logger.log("No misspelled words found", vim.log.levels.INFO)
+        notify("No misspelled words found", vim.log.levels.INFO)
         return
     end
 
     local suggestions = vim.fn.spellsuggest(match.word, config.options.max_suggestions)
     if #suggestions == 0 then
-        logger.log("No suggestions for: " .. match.word, vim.log.levels.WARN)
+        notify("No suggestions for: " .. match.word, vim.log.levels.WARN)
         return
     end
 
@@ -41,7 +48,7 @@ function M.correct_word()
         if item == "Add to dictionary" then
             vim.api.nvim_win_set_cursor(0, match.pos)
             vim.cmd("spellgood " .. vim.fn.fnameescape(match.word))
-            logger.log("Added '" .. match.word .. "' to dictionary", vim.log.levels.INFO)
+            notify("Added '" .. match.word .. "' to dictionary", vim.log.levels.INFO)
         else
             replacer.replace_word(match.pos, match.word, item)
         end
