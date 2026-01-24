@@ -11,7 +11,8 @@ local M = {}
 ---@return number
 local function calc_distance(pos, initial_pos)
     -- TODO: Consider a better algorithm for this - why do we need to approximate?
-    return math.abs(initial_pos[1] - pos[1]) * 1000 + math.abs(initial_pos[2] - pos[2])
+    return math.abs(initial_pos[1] - pos[1]) * 1000 -- Weigh rows more heavily
+        + math.abs(initial_pos[2] - pos[2])
 end
 
 ---Check if cursor position falls within a word's bounds (includes position after word for insert mode)
@@ -20,8 +21,9 @@ end
 ---@param word_len integer
 ---@return boolean
 local function cursor_is_in_word(cursor_pos, word_pos, word_len)
-    if cursor_pos[1] ~= word_pos[1] then return false end
-    return cursor_pos[2] >= word_pos[2] and cursor_pos[2] <= word_pos[2] + word_len
+    return cursor_pos[1] == word_pos[1]
+        and cursor_pos[2] >= word_pos[2]
+        and cursor_pos[2] <= word_pos[2] + word_len
 end
 
 ---Check if cursor is on a misspelled word
@@ -34,18 +36,14 @@ local function get_misspelled_at_cursor()
 
     local cursor = vim.api.nvim_win_get_cursor(0)
     local line = vim.api.nvim_get_current_line()
-    local col = cursor[2] -- 0-indexed
 
-    -- Walk backwards to find word start (sub is 1-indexed, so use col+1)
-    while col > 0 and line:sub(col, col):match("[%w']") do
-        col = col - 1
-    end
-    -- If we stopped on a non-word char (or went to 0), adjust forward
-    if not line:sub(col + 1, col + 1):match("[%w']") then
-        col = col + 1
+    -- Find word start (convert to 1-indexed for string ops, then back to 0-indexed)
+    local start = cursor[2] + 1
+    while start > 1 and line:sub(start - 1, start - 1):match("[%w']") do
+        start = start - 1
     end
 
-    return { word = word, pos = { cursor[1], col } }
+    return { word = word, pos = { cursor[1], start - 1 } }
 end
 
 ---Search in a direction and return match with distance
