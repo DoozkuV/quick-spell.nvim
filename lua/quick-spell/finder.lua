@@ -14,14 +14,14 @@ local function calc_distance(pos, initial_pos)
     return math.abs(initial_pos[1] - pos[1]) * 1000 + math.abs(initial_pos[2] - pos[2])
 end
 
----Check if cursor position falls within a word's bounds
+---Check if cursor position falls within a word's bounds (includes position after word for insert mode)
 ---@param cursor_pos integer[]
 ---@param word_pos integer[]
 ---@param word_len integer
 ---@return boolean
 local function cursor_is_in_word(cursor_pos, word_pos, word_len)
     if cursor_pos[1] ~= word_pos[1] then return false end
-    return cursor_pos[2] >= word_pos[2] and cursor_pos[2] < word_pos[2] + word_len
+    return cursor_pos[2] >= word_pos[2] and cursor_pos[2] <= word_pos[2] + word_len
 end
 
 ---Check if cursor is on a misspelled word
