@@ -332,5 +332,24 @@ describe("quick-spell", function()
             -- Should find "wrld" not "helo" when cursor is right after "helo"
             assert.equals("wrld", found_word)
         end)
+
+        it("finds previous misspelled word when cursor at end of misspelled word", function()
+            config.setup({ skip_cursor_word_modes = { "n" } })
+            vim.api.nvim_buf_set_lines(0, 0, -1, false, { "helo wrld" })
+            vim.api.nvim_win_set_cursor(0, { 1, 8 }) -- at end of "wrld" (on 'd')
+
+            local found_word = nil
+            local orig_select = vim.ui.select
+            vim.ui.select = function(items, opts, on_choice)
+                found_word = opts.prompt:match("'([^']+)'")
+                on_choice(nil)
+            end
+
+            quick_spell.correct_word()
+
+            vim.ui.select = orig_select
+            -- Should find "helo" (the previous misspelled word), not nothing
+            assert.equals("helo", found_word)
+        end)
     end)
 end)

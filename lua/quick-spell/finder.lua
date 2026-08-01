@@ -47,11 +47,10 @@ local function get_misspelled_at_cursor()
 end
 
 ---Search in a direction and return match with distance
----@param forward boolean search forward?
 ---@param initial_pos integer[]
+---@param forward boolean
 ---@return SpellMatch?
-local function search_direction(forward, initial_pos)
-    -- TODO: Refactor the params for this function - forward should probably be a kwarg
+local function search_direction(initial_pos, forward)
     local cmd = forward and "]s" or "[s"
     vim.cmd("silent! normal! " .. cmd)
     local pos = vim.api.nvim_win_get_cursor(0)
@@ -66,6 +65,25 @@ local function search_direction(forward, initial_pos)
         pos = pos,
         dist = calc_distance(pos, initial_pos),
     }
+end
+
+---Search in a direction, optionally skipping cursor word
+---@param initial_pos integer[]
+---@param forward boolean
+---@param skip_cursor_word boolean
+---@return SpellMatch?
+local function search_skip_cursor(initial_pos, forward, skip_cursor_word)
+    local result = search_direction(initial_pos, forward)
+
+    if skip_cursor_word and result and cursor_is_in_word(initial_pos, result.pos, #result.word) then
+        vim.api.nvim_win_set_cursor(0, result.pos)
+        result = search_direction(initial_pos, forward)
+        if result and cursor_is_in_word(initial_pos, result.pos, #result.word) then
+            return nil
+        end
+    end
+
+    return result
 end
 
 ---@param skip_cursor_word boolean
@@ -85,21 +103,15 @@ function M.find_nearest(skip_cursor_word)
     end
 
     -- Search both directions
-    local back = search_direction(false, initial_pos)
+    local back = search_skip_cursor(initial_pos, false, skip_cursor_word)
     vim.api.nvim_win_set_cursor(0, initial_pos)
-    local fwd = search_direction(true, initial_pos)
+    local fwd = search_skip_cursor(initial_pos, true, skip_cursor_word)
 
     -- Cleanup
     vim.o.wrapscan = saved_ws
     vim.api.nvim_win_set_cursor(0, initial_pos)
 
-    -- Filter out cursor word when skipping
-    if skip_cursor_word then
-        if back and cursor_is_in_word(initial_pos, back.pos, #back.word) then back = nil end
-        if fwd and cursor_is_in_word(initial_pos, fwd.pos, #fwd.word) then fwd = nil end
-    end
-
-    -- Direct comparison
+    -- Return nearest
     if not back then return fwd end
     if not fwd then return back end
     return back.dist <= fwd.dist and back or fwd
